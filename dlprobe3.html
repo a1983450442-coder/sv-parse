@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>dl probe 3</title></head>
+<body><pre id="out">PENDING</pre>
+<script>
+const out=document.getElementById('out');
+const log=s=>{ out.textContent += "\n"+s; };
+out.textContent="START origin="+location.origin;
+async function tryFetch(tag,url,init){
+  try{
+    const r=await fetch(url,init);
+    log(tag+' http='+r.status+' ct='+(r.headers.get('content-type')||'-')+' len='+(r.headers.get('content-length')||'-'));
+    if(r.ok){
+      try{ const reader=r.body.getReader(); let got=0;
+        while(true){ const d=await reader.read(); if(d.done) break; got+=d.value.length; if(got>150000) break; }
+        log(tag+' BYTES='+got);
+      }catch(e){ log(tag+' stream_err='+e.message); }
+    }
+  }catch(e){ log(tag+' THROW '+e.name+': '+e.message); }
+}
+(async()=>{
+  let main='', backup='';
+  try{
+    const r=await fetch('https://api.hk0.cc/api/douyin?url='+encodeURIComponent('https://www.douyin.com/video/7675412388233414629'),{mode:'cors',credentials:'omit'});
+    const j=await r.json();
+    main=j.data.url;
+    if(Array.isArray(j.data.video_backup)&&j.data.video_backup[0]) backup=j.data.video_backup[0].url||'';
+    log('main host='+new URL(main).host);
+    log('backup host='+(backup?new URL(backup).host:'-'));
+  }catch(e){ log('parse fail '+e.message); out.textContent+="\nDONE"; return; }
+
+  await tryFetch('A-main-nohdr', main, {mode:'cors',credentials:'omit'});
+  await tryFetch('B-main-range', main, {mode:'cors',credentials:'omit',headers:{'Range':'bytes=0-131071'}});
+  if(backup){
+    await tryFetch('C-backup-nohdr', backup, {mode:'cors',credentials:'omit'});
+  }
+  out.textContent += "\nDONE";
+})();
+</script></body></html>

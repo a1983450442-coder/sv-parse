@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>probe</title></head>
+<body><pre id="out">PENDING</pre>
+<script>
+const out=document.getElementById('out');
+const log=(s)=>{ out.textContent += "\n"+s; };
+out.textContent="START origin="+location.origin;
+const douyinUrl='https://www.douyin.com/video/7675412388233414629';
+const biliUrl='https://www.bilibili.com/video/BV1xx411c7mD/';
+async function t(name,u){
+  try{
+    const r=await fetch('https://api.hk0.cc/api/'+u,{method:'GET',mode:'cors',credentials:'omit'});
+    const ct=r.headers.get('content-type')||'';
+    let j=null; try{ j=await r.json(); }catch(e){ log(name+' JSON_FAIL '+e.message); return; }
+    const d=j&&j.data||{};
+    const opts=[];
+    if(d.url) opts.push(d.url);
+    if(Array.isArray(d.video_backup)) d.video_backup.forEach(x=>{ if(x&&x.url) opts.push(x.url); });
+    if(Array.isArray(d.videos)) d.videos.forEach(x=>{ if(x&&x.url) opts.push(x.url); });
+    log(name+' OK http='+r.status+' ct='+ct+' code='+j.code+' title='+String(d.title||'').slice(0,20)+' opts='+opts.length);
+  }catch(e){ log(name+' FAIL '+e.name+': '+e.message); }
+}
+(async()=>{
+  await t('douyin','douyin?url='+encodeURIComponent(douyinUrl));
+  await t('bilibili','bilibili?url='+encodeURIComponent(biliUrl));
+  out.textContent += "\nDONE";
+})();
+</script></body></html>

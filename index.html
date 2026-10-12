@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0f19">
+<meta name="referrer" content="no-referrer">
 <title>短视频解析下载 · 无水印</title>
 <meta name="description" content="粘贴抖音、快手、B站、小红书、视频号分享链接，一键解析无水印视频与图集。">
 <style>
@@ -305,12 +306,26 @@ footer{text-align:center;color:#5c6685;font-size:12px;margin-top:28px;line-heigh
     return String(s).replace(/[\\\/:*?"<>|\r\n]+/g, '_').replace(/\s+/g, ' ').trim().slice(0, 70) || 'video';
   }
 
+  function saveBlobUrl(url, name){
+    return fetch(url, { mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer' })
+      .then(function(res){ if (!res.ok) throw new Error('HTTP ' + res.status); return res.blob(); })
+      .then(function(blob){
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+        return blob.size;
+      });
+  }
+
   function download(url, name){
     var bar = $('bar'), fill = $('barFill');
     if (bar) { bar.style.display = 'block'; fill.style.width = '0%'; }
     logLine('开始下载：' + name, 'w');
 
-    fetch(url, { mode: 'cors', credentials: 'omit' })
+    fetch(url, { mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer' })
       .then(function(res){
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var total = Number(res.headers.get('content-length') || 0);
@@ -355,7 +370,7 @@ footer{text-align:center;color:#5c6685;font-size:12px;margin-top:28px;line-heigh
         var bar3 = $('bar');
         if (bar3) bar3.style.display = 'none';
         logLine('浏览器直下失败（' + e.message + '），已改为新窗口打开，长按/右键即可保存。', 'e');
-        window.open(url, '_blank');
+        window.open(url, '_blank', 'noreferrer');
         toast('请在新窗口长按视频保存');
       });
   }
@@ -460,14 +475,8 @@ footer{text-align:center;color:#5c6685;font-size:12px;margin-top:28px;line-heigh
       dbtn.onclick = function(){
         item.images.forEach(function(u, i){
           setTimeout(function(){
-            var a = document.createElement('a');
-            a.href = u;
-            a.download = safeName(item.title) + '_' + (i + 1) + '.jpg';
-            a.target = '_blank';
-            a.rel = 'noopener';
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function(){ a.remove(); }, 3000);
+            saveBlobUrl(u, safeName(item.title) + '_' + (i + 1) + '.jpg')
+              .catch(function(){ window.open(u, '_blank'); });
           }, i * 420);
         });
         logLine('已提交 ' + item.images.length + ' 张图片下载任务。', 'w');
